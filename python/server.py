@@ -1,5 +1,3 @@
-# source /Users/tnappy/node_projects/quickstart/python/bin/activate
-# Read env vars from .env file
 from plaid.exceptions import ApiException
 from plaid.model.payment_amount import PaymentAmount
 from plaid.model.products import Products
@@ -41,7 +39,7 @@ from plaid.model.transfer_user_address_in_request import TransferUserAddressInRe
 from plaid.api import plaid_api
 from flask import Flask
 from flask import render_template
-from flask import request
+from flask import request, session
 from flask import jsonify
 from datetime import datetime
 from datetime import timedelta
@@ -69,7 +67,7 @@ PLAID_ENV = os.getenv('PLAID_ENV', 'sandbox')
 # PLAID_PRODUCTS is a comma-separated list of products to use when initializing
 # Link. Note that this list must contain 'assets' in order for the app to be
 # able to create and retrieve asset reports.
-PLAID_PRODUCTS = os.getenv('PLAID_PRODUCTS', 'transactions').split(',')
+PLAID_PRODUCTS = ['auth','transactions']
 
 # PLAID_COUNTRY_CODES is a comma-separated list of countries for which users
 # will be able to select institutions from.
@@ -121,6 +119,7 @@ for product in PLAID_PRODUCTS:
 
 # We store the access_token in memory - in production, store it in a secure
 # persistent data store.
+
 access_token = None
 # The payment_id is only relevant for the UK Payment Initiation product.
 # We store the payment_id in memory - in production, store it in a secure
@@ -138,6 +137,11 @@ item_id = None
 def info():
     global access_token
     global item_id
+    if 'access_token' in session:
+        access_token=session['access_token']
+        print("access_token is in session")
+    if 'item_id' in session:
+        item_id=session['item_id']
     return jsonify({
         'item_id': item_id,
         'access_token': access_token,
@@ -156,7 +160,7 @@ def create_link_token_for_payment():
                 street=['street name 999'],
                 city='city',
                 postal_code='99999',
-                country='GB'
+                country='US'
             )
         )
         response = client.payment_initiation_recipient_create(
@@ -167,7 +171,7 @@ def create_link_token_for_payment():
             recipient_id=recipient_id,
             reference='TestPayment',
             amount=PaymentAmount(
-                currency='GBP',
+                currency='USD',
                 value=100.00
             )
         )
@@ -210,6 +214,7 @@ def create_link_token():
 
         # create link token
         response = client.link_token_create(request)
+        print(response)
         return jsonify(response.to_dict())
     except plaid.ApiException as e:
         return json.loads(e.body)
@@ -232,6 +237,9 @@ def get_access_token():
         exchange_response = client.item_public_token_exchange(exchange_request)
         access_token = exchange_response['access_token']
         item_id = exchange_response['item_id']
+        session['access_token']=access_token
+        session['item_id']=item_id
+        print(session['access_token'])
         if 'transfer' in PLAID_PRODUCTS:
             transfer_id = authorize_and_create_transfer(access_token)
         return jsonify(exchange_response.to_dict())
@@ -246,12 +254,15 @@ def get_access_token():
 @app.route('/api/auth', methods=['GET'])
 def get_auth():
     try:
-       request = AuthGetRequest(
+        if 'access_token' in session:
+            access_token=session['access_token']
+            print("access is : ", access_token)
+        request = AuthGetRequest(
             access_token=access_token
         )
-       response = client.auth_get(request)
-       pretty_print_response(response.to_dict())
-       return jsonify(response.to_dict())
+        response = client.auth_get(request)
+        pretty_print_response(response.to_dict())
+        return jsonify(response.to_dict())
     except plaid.ApiException as e:
         error_response = format_error(e)
         return jsonify(error_response)
@@ -583,4 +594,5 @@ def authorize_and_create_transfer(access_token):
 
 
 if __name__ == '__main__':
+    app.secret_key="aerdadefh423578943fn"
     app.run(port=os.getenv('PORT', 8000))

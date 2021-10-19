@@ -12,7 +12,6 @@ interface Props {
   endpoint: string;
   name?: string;
   categories: Array<Categories>;
-  schema: string;
   description: string;
   transformData: (arg: any) => Array<DataItem>;
 }
@@ -45,14 +44,13 @@ const Endpoint = (props: Props) => {
     <>
       <div className={styles.endpointContainer}>
         <Note info className={styles.post}>
-          POST
+          Check
         </Note>
         <div className={styles.endpointContents}>
           <div className={styles.endpointHeader}>
             {props.name != null && (
               <span className={styles.endpointName}>{props.name}</span>
             )}
-            <span className={styles.schema}>{props.schema}</span>
           </div>
           <div className={styles.endpointDescription}>{props.description}</div>
         </div>
