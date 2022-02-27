@@ -1,7 +1,7 @@
 #### Pre-requisites
 
 - python >= 3.8 is installed on your machine and available at your command line.
-- [npm](https://www.npmjs.com/get-npm)
+- Install npm [npm](https://www.npmjs.com/get-npm)
 - If using Windows, a command line utility capable of running basic Unix shell commands
 
 #### 1. Running the backend
@@ -11,7 +11,7 @@ Once started with one of the commands below, the web app will be running on http
 ##### Python
 
 **:warning: As `python2` has reached its end of life, only `python3` is supported.**
-
+Open a terminal in the plaid_project folder and run the following command to start the backend server.
 ```
 $ cd ./python
 
@@ -23,6 +23,7 @@ $ pip install -r requirements.txt
 $ ./start.sh
 ```
 Now the backend of the web app is running on one terminal.
+
 If you get this error message:
 
 ```

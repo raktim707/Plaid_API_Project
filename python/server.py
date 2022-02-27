@@ -137,67 +137,11 @@ item_id = None
 def info():
     global access_token
     global item_id
-    if 'access_token' in session:
-        access_token=session['access_token']
-        print("access_token is in session")
-    if 'item_id' in session:
-        item_id=session['item_id']
     return jsonify({
         'item_id': item_id,
         'access_token': access_token,
         'products': PLAID_PRODUCTS
     })
-
-
-@app.route('/api/create_link_token_for_payment', methods=['POST'])
-def create_link_token_for_payment():
-    global payment_id
-    try:
-        request = PaymentInitiationRecipientCreateRequest(
-            name='John Doe',
-            bacs=NumbersBACSNullable(account='26207729', sort_code='560029'),
-            address=PaymentInitiationAddress(
-                street=['street name 999'],
-                city='city',
-                postal_code='99999',
-                country='US'
-            )
-        )
-        response = client.payment_initiation_recipient_create(
-            request)
-        recipient_id = response['recipient_id']
-
-        request = PaymentInitiationPaymentCreateRequest(
-            recipient_id=recipient_id,
-            reference='TestPayment',
-            amount=PaymentAmount(
-                currency='USD',
-                value=100.00
-            )
-        )
-        response = client.payment_initiation_payment_create(
-            request
-        )
-        pretty_print_response(response.to_dict())
-        payment_id = response['payment_id']
-        request = LinkTokenCreateRequest(
-            products=[Products('payment_initiation')],
-            client_name='Plaid Test',
-            country_codes=list(map(lambda x: CountryCode(x), PLAID_COUNTRY_CODES)),
-            language='en',
-            user=LinkTokenCreateRequestUser(
-                client_user_id=str(time.time())
-            ),
-            payment_initiation=LinkTokenCreateRequestPaymentInitiation(
-                payment_id=payment_id
-            )
-        )
-        response = client.link_token_create(request)
-        pretty_print_response(response.to_dict())
-        return jsonify(response.to_dict())
-    except plaid.ApiException as e:
-        return json.loads(e.body)
-
 
 @app.route('/api/create_link_token', methods=['POST'])
 def create_link_token():
@@ -261,7 +205,7 @@ def get_auth():
             access_token=access_token
         )
         response = client.auth_get(request)
-        pretty_print_response(response.to_dict())
+        
         return jsonify(response.to_dict())
     except plaid.ApiException as e:
         error_response = format_error(e)
@@ -286,7 +230,7 @@ def get_transactions():
             options=options
         )
         response = client.transactions_get(request)
-        pretty_print_response(response.to_dict())
+        
         return jsonify(response.to_dict())
     except plaid.ApiException as e:
         error_response = format_error(e)
@@ -304,7 +248,6 @@ def get_identity():
             access_token=access_token
         )
         response = client.identity_get(request)
-        pretty_print_response(response.to_dict())
         return jsonify(
             {'error': None, 'identity': response.to_dict()['accounts']})
     except plaid.ApiException as e:
@@ -323,7 +266,7 @@ def get_balance():
             access_token=access_token
         )
         response = client.accounts_balance_get(request)
-        pretty_print_response(response.to_dict())
+        
         return jsonify(response.to_dict())
     except plaid.ApiException as e:
         error_response = format_error(e)
@@ -341,7 +284,7 @@ def get_accounts():
             access_token=access_token
         )
         response = client.accounts_get(request)
-        pretty_print_response(response.to_dict())
+        
         return jsonify(response.to_dict())
     except plaid.ApiException as e:
         error_response = format_error(e)
@@ -376,7 +319,7 @@ def get_assets():
         )
 
         response = client.asset_report_create(request)
-        pretty_print_response(response.to_dict())
+        
         asset_report_token = response['asset_report_token']
     except plaid.ApiException as e:
         error_response = format_error(e)
@@ -421,176 +364,11 @@ def get_assets():
         return jsonify(error_response)
 
 
-# Retrieve investment holdings data for an Item
-# https://plaid.com/docs/#investments
-
-
-@app.route('/api/holdings', methods=['GET'])
-def get_holdings():
-    try:
-        request = InvestmentsHoldingsGetRequest(access_token=access_token)
-        response = client.investments_holdings_get(request)
-        pretty_print_response(response.to_dict())
-        return jsonify({'error': None, 'holdings': response.to_dict()})
-    except plaid.ApiException as e:
-        error_response = format_error(e)
-        return jsonify(error_response)
-
-
-# Retrieve Investment Transactions for an Item
-# https://plaid.com/docs/#investments
-
-
-@app.route('/api/investment_transactions', methods=['GET'])
-def get_investment_transactions():
-    # Pull transactions for the last 30 days
-
-    start_date = (datetime.datetime.now() - timedelta(days=(30)))
-    end_date = datetime.datetime.now()
-    try:
-        options = InvestmentsTransactionsGetRequestOptions()
-        request = InvestmentsTransactionsGetRequest(
-            access_token=access_token,
-            start_date=start_date.date(),
-            end_date=end_date.date(),
-            options=options
-        )
-        response = client.investment_transactions_get(
-            request)
-        pretty_print_response(response.to_dict())
-        return jsonify(
-            {'error': None, 'investment_transactions': response.to_dict()})
-
-    except plaid.ApiException as e:
-        error_response = format_error(e)
-        return jsonify(error_response)
-
-# This functionality is only relevant for the ACH Transfer product.
-# Retrieve Transfer for a specified Transfer ID
-
-@app.route('/api/transfer', methods=['GET'])
-def transfer():
-    global transfer_id
-    try:
-        request = TransferGetRequest(transfer_id=transfer_id)
-        response = client.transfer_get(request)
-        pretty_print_response(response.to_dict())
-        return jsonify({'error': None, 'transfer': response['transfer'].to_dict()})
-    except plaid.ApiException as e:
-        error_response = format_error(e)
-        return jsonify(error_response)
-
-
-# This functionality is only relevant for the UK Payment Initiation product.
-# Retrieve Payment for a specified Payment ID
-
-
-@app.route('/api/payment', methods=['GET'])
-def payment():
-    global payment_id
-    try:
-        request = PaymentInitiationPaymentGetRequest(payment_id=payment_id)
-        response = client.payment_initiation_payment_get(request)
-        pretty_print_response(response.to_dict())
-        return jsonify({'error': None, 'payment': response.to_dict()})
-    except plaid.ApiException as e:
-        error_response = format_error(e)
-        return jsonify(error_response)
-
-
-# Retrieve high-level information about an Item
-# https://plaid.com/docs/#retrieve-item
-
-
-@app.route('/api/item', methods=['GET'])
-def item():
-    try:
-        request = ItemGetRequest(access_token=access_token)
-        response = client.item_get(request)
-        request = InstitutionsGetByIdRequest(
-            institution_id=response['item']['institution_id'],
-            country_codes=list(map(lambda x: CountryCode(x), PLAID_COUNTRY_CODES))
-        )
-        institution_response = client.institutions_get_by_id(request)
-        pretty_print_response(response.to_dict())
-        pretty_print_response(institution_response.to_dict())
-        return jsonify({'error': None, 'item': response.to_dict()[
-            'item'], 'institution': institution_response.to_dict()['institution']})
-    except plaid.ApiException as e:
-        error_response = format_error(e)
-        return jsonify(error_response)
-
-def pretty_print_response(response):
-  print(json.dumps(response, indent=2, sort_keys=True, default=str))
-
 def format_error(e):
     response = json.loads(e.body)
     return {'error': {'status_code': e.status, 'display_message':
                       response['error_message'], 'error_code': response['error_code'], 'error_type': response['error_type']}}
 
-# This is a helper function to authorize and create a Transfer after successful
-# exchange of a public_token for an access_token. The transfer_id is then used
-# to obtain the data about that particular Transfer.
-def authorize_and_create_transfer(access_token):
-    try:
-        # We call /accounts/get to obtain first account_id - in production,
-        # account_id's should be persisted in a data store and retrieved
-        # from there.
-        request = AccountsGetRequest(access_token=access_token)
-        response = client.accounts_get(request)
-        account_id = response['accounts'][0]['account_id']
-
-        request = TransferAuthorizationCreateRequest(
-            access_token=access_token,
-            account_id=account_id,
-            type=TransferType('credit'),
-            network=TransferNetwork('ach'),
-            amount='12.34',
-            ach_class=ACHClass('ppd'),
-            user=TransferUserInRequest(
-                legal_name='FirstName LastName',
-                email_address='foobar@email.com',
-                address=TransferUserAddressInRequest(
-                    street='123 Main St.',
-                    city='San Francisco',
-                    region='CA',
-                    postal_code='94053',
-                    country='US'
-                ),
-            ),
-        )
-        response = client.transfer_authorization_create(request)
-        pretty_print_response(response)
-        authorization_id = response['authorization']['id']
-
-        request = TransferCreateRequest(
-            idempotency_key=TransferCreateIdempotencyKey('1223abc456xyz7890001'),
-            access_token=access_token,
-            account_id=account_id,
-            authorization_id=authorization_id,
-            type=TransferType('credit'),
-            network=TransferNetwork('ach'),
-            amount='12.34',
-            description='Payment',
-            ach_class=ACHClass('ppd'),
-            user=TransferUserInRequest(
-                legal_name='FirstName LastName',
-                email_address='foobar@email.com',
-                address=TransferUserAddressInRequest(
-                    street='123 Main St.',
-                    city='San Francisco',
-                    region='CA',
-                    postal_code='94053',
-                    country='US'
-                ),
-            ),
-        )
-        response = client.transfer_create(request)
-        pretty_print_response(response)
-        return response['transfer']['id']
-    except plaid.ApiException as e:
-        error_response = format_error(e)
-        return jsonify(error_response)
 
 
 if __name__ == '__main__':
